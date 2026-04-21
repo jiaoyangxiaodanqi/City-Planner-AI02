@@ -9,15 +9,13 @@ st.title("🏗️ AI 城市规划决策系统 - 全国通用版")
 st.markdown("集成周边配套扫描、跨城市交通测算、AI 综合价值评估。")
 
 # ================= 2. 侧边栏：参数输入 =================
-st.sidebar.header("🔑 密钥授权")
-
-# 尝试去系统的密码保险箱里找钥匙，如果找不到（比如别人在用），就留空
-default_amap = st.secrets.get("AMAP_KEY", "")
-default_ai = st.secrets.get("DEEPSEEK_KEY", "")
-
-# 把找到的钥匙作为输入框的“默认值 (value)”填进去
-amap_key = st.sidebar.text_input("高德 API Key", type="password", value=default_amap)
-ai_key = st.sidebar.text_input("DeepSeek API Key", type="password", value=default_ai)
+# 🤫 静默读取模式：直接从后台 Secrets 获取，不再在网页上显示输入框
+try:
+    amap_key = st.secrets["AMAP_KEY"]
+    ai_key = st.secrets["DEEPSEEK_KEY"]
+except KeyError:
+    st.error("❌ 密钥未配置：请在 Streamlit Cloud 的 Secrets 设置中添加 AMAP_KEY 和 DEEPSEEK_KEY")
+    st.stop() # 如果没配置钥匙，程序直接停止，防止后面报错
 
 st.sidebar.divider()
 st.sidebar.header("📍 地块定位")
