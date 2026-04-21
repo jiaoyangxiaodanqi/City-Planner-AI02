@@ -96,17 +96,15 @@ if len(st.session_state.messages) == 0:
         elif 'poi_data' not in st.session_state or 'traffic_data' not in st.session_state:
             st.warning("请先完成上方左侧和右侧的两项数据采集。")
         else:
-            with st.spinner("AI 正在深度研判地块价值..."):
+            with st.spinner("AI 正在研判地块数据，报告生成中..."):
                 client = OpenAI(api_key=ai_key, base_url="https://api.deepseek.com")
                 
-                # 把表格数据拼装好
                 context = f"""
                 地块所在城市：{city}
                 1. 周边配套抽样：\n{st.session_state['poi_data'].head(10).to_string()}
                 2. 核心交通通达性：\n{st.session_state['traffic_data'].to_string()}
                 """
                 
-                # 构造第一句 Prompt
                 first_prompt = f"""
                 你是一位拥有20年经验的城市规划院长和地产资深顾问。
                 请根据以下调研数据，为甲方提交一份《地块开发潜力综合评估报告》。
@@ -117,30 +115,27 @@ if len(st.session_state.messages) == 0:
                 {context}
                 """
                 
-                # 把我们的系统要求伪装成用户的第一次发言，存入记忆
                 st.session_state.messages.append({"role": "user", "content": first_prompt})
                 
-                # 呼叫 AI
+                # 🌟 修改点 1：初始报告开启“打字机”流式输出
                 response = client.chat.completions.create(
                     model="deepseek-chat",
-                    messages=st.session_state.messages
+                    messages=st.session_state.messages,
+                    stream=True  # 开启流式传输
                 )
                 
-                # 把 AI 写的报告也存入记忆
-                reply = response.choices[0].message.content
-                st.session_state.messages.append({"role": "assistant", "content": reply})
+                # 直接在屏幕上渲染打字效果，并把最终结果存入 reply
+                reply = st.write_stream(response)
                 
-                # 刷新页面，让下方的聊天气泡显示出来
+                st.session_state.messages.append({"role": "assistant", "content": reply})
                 st.rerun()
 
 # 3. 渲染历史聊天气泡
 for msg in st.session_state.messages:
-    # 为了界面美观，如果是第一句带有大量丑陋表格数据的系统提示词，我们换个优雅的显示方式
     if msg["role"] == "user" and "你是一位拥有20年经验" in msg["content"]:
         with st.chat_message("user", avatar="🧑‍💻"):
             st.markdown("*(系统指令)*：请基于当前抓取的数据，生成初始评估报告。")
     else:
-        # 正常的聊天气泡
         avatar_icon = "🧑‍💻" if msg["role"] == "user" else "🤖"
         with st.chat_message(msg["role"], avatar=avatar_icon):
             st.markdown(msg["content"])
@@ -150,22 +145,21 @@ if prompt := st.chat_input("向 AI 规划师提问，例如：‘如果这里改
     if not ai_key:
         st.error("请先输入 DeepSeek API Key")
     else:
-        # 显示用户刚刚输入的问题，并存入记忆
         with st.chat_message("user", avatar="🧑‍💻"):
             st.markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # 呼叫 AI 进行回答 (注意：这里把包含所有历史记录的 messages 发给了 AI)
         with st.chat_message("assistant", avatar="🤖"):
             client = OpenAI(api_key=ai_key, base_url="https://api.deepseek.com")
             
-            with st.spinner("思考中..."):
-                response = client.chat.completions.create(
-                    model="deepseek-chat",
-                    messages=st.session_state.messages # 将全部上下文喂给AI
-                )
-                reply = response.choices[0].message.content
-                st.markdown(reply)
+            # 🌟 修改点 2：底部追问对话开启“打字机”流式输出
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=st.session_state.messages,
+                stream=True  # 开启流式传输
+            )
+            
+            # 直接在对话气泡里渲染打字效果
+            reply = st.write_stream(response)
                 
-        # 把 AI 的最新回答存入记忆
         st.session_state.messages.append({"role": "assistant", "content": reply})
